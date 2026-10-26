@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: brainwave-blitz
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/server/index.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: LOG_LEVEL
+        value: info
+      - key: MAX_ROOMS
+        value: "100"
