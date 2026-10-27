@@ -1,4 +1,4 @@
-import { LIMITS, type CategoryChoice, type Phase } from "../../shared/constants";
+import { LIMITS, type CategoryChoice, type Phase, type TeamId } from "../../shared/constants";
 import type { SettingsUpdate } from "../../shared/schemas";
 import { PlayerState, type BlitzState, RoundSummary } from "../../shared/state";
 import { rankPlayers } from "./ranking";
@@ -27,6 +27,8 @@ export type RejectReason =
   | "WRONG_PHASE"
   | "NOT_ENOUGH_PLAYERS"
   | "NOT_READY"
+  | "NOT_TEAM_MODE"
+  | "NEED_BOTH_TEAMS"
   | "UNKNOWN_PLAYER"
   | "STALE_QUESTION"
   | "ALREADY_ANSWERED"
@@ -156,6 +158,7 @@ export class MatchEngine {
     p.avatar = avatar;
     p.order = ++this.orderCounter;
     p.ready = false;
+    p.team = this.s.mode === "teams" ? this.smallerTeam() : 0;
     p.connected = true;
     p.left = false;
     p.isHost = false;
@@ -234,7 +237,8 @@ export class MatchEngine {
 
   private afterRosterShrank(): void {
     if (this.disposed) return;
-    if (this.s.phase === "COUNTDOWN" && this.connectedPlayers().length < LIMITS.minPlayers) {
+    const teamBroken = this.s.mode === "teams" && !this.bothTeamsPresent();
+    if (this.s.phase === "COUNTDOWN" && (this.connectedPlayers().length < LIMITS.minPlayers || teamBroken)) {
       this.emit("countdown_aborted");
       this.resetMatchState();
       this.enter("LOBBY", 0, 0);
@@ -288,8 +292,78 @@ export class MatchEngine {
     if (update.rounds !== undefined) this.s.rounds = update.rounds;
     if (update.questionSeconds !== undefined) this.s.questionSeconds = update.questionSeconds;
     if (update.maxPlayers !== undefined) this.s.maxPlayers = update.maxPlayers;
+    if (update.mode !== undefined && update.mode !== this.s.mode) this.changeMode(update.mode);
     this.bump();
     return ok;
+  }
+
+  /** Switching to teams splits the lobby evenly in join order. Switching back clears teams. */
+  private changeMode(mode: "solo" | "teams"): void {
+    this.s.mode = mode;
+    const ordered = this.activePlayers().sort((a, b) => a.order - b.order);
+    ordered.forEach((p, i) => {
+      p.team = mode === "teams" ? ((i % 2) + 1) : 0;
+    });
+  }
+
+  private smallerTeam(): TeamId {
+    let a = 0;
+    let b = 0;
+    this.activePlayers().forEach((p) => {
+      if (p.team === 1) a++;
+      else if (p.team === 2) b++;
+    });
+    return b < a ? 2 : 1;
+  }
+
+  setTeam(id: string, team: TeamId): Result {
+    const p = this.s.players.get(id);
+    if (!p || p.left) return fail("UNKNOWN_PLAYER");
+    if (this.s.phase !== "LOBBY") return fail("WRONG_PHASE");
+    if (this.s.mode !== "teams") return fail("NOT_TEAM_MODE");
+    if (p.team !== team) {
+      p.team = team;
+      this.bump();
+    }
+    return ok;
+  }
+
+  private bothTeamsPresent(): boolean {
+    const connected = this.connectedPlayers();
+    return connected.some((p) => p.team === 1) && connected.some((p) => p.team === 2);
+  }
+
+  /** Recomputes team totals, averages and ranks from the players. Cheap: at most 12 players. */
+  private refreshTeams(): void {
+    const sums = new Map<number, { total: number; members: number; correct: number }>();
+    for (const id of [1, 2]) sums.set(id, { total: 0, members: 0, correct: 0 });
+    this.s.players.forEach((p) => {
+      const t = sums.get(p.team);
+      if (!t) return;
+      t.members += 1;
+      t.total += p.score;
+      t.correct += p.correctCount;
+    });
+    const rows = this.s.teams.map((team) => {
+      const t = sums.get(team.id) ?? { total: 0, members: 0, correct: 0 };
+      const avg = t.members > 0 ? t.total / t.members : 0;
+      const avgCorrect = t.members > 0 ? t.correct / t.members : 0;
+      return { team, t, avg, avgCorrect };
+    });
+    rows.forEach(({ team, t, avg }) => {
+      team.score = Math.round(avg);
+      team.total = t.total;
+      team.members = t.members;
+    });
+    rows.forEach(({ team, t }) => {
+      team.correctCount = t.correct;
+    });
+    rows.forEach((r) => {
+      const better = rows.filter(
+        (o) => o !== r && (o.avg > r.avg || (o.avg === r.avg && o.avgCorrect > r.avgCorrect)),
+      ).length;
+      r.team.rank = better + 1;
+    });
   }
 
   start(id: string): Result {
@@ -297,6 +371,7 @@ export class MatchEngine {
     if (this.s.phase !== "LOBBY") return fail("WRONG_PHASE");
     const connected = this.connectedPlayers();
     if (connected.length < LIMITS.minPlayers) return fail("NOT_ENOUGH_PLAYERS");
+    if (this.s.mode === "teams" && !this.bothTeamsPresent()) return fail("NEED_BOTH_TEAMS");
     if (connected.some((p) => !p.isHost && !p.ready)) return fail("NOT_READY");
     return this.beginMatch();
   }
@@ -305,7 +380,7 @@ export class MatchEngine {
     if (this.s.hostId !== id) return fail("NOT_HOST");
     if (this.s.phase !== "RESULTS") return fail("WRONG_PHASE");
     this.resetMatchState();
-    if (this.connectedPlayers().length < LIMITS.minPlayers) {
+    if (this.connectedPlayers().length < LIMITS.minPlayers || (this.s.mode === "teams" && !this.bothTeamsPresent())) {
       this.enter("LOBBY", 0, 0);
       return ok;
     }
@@ -476,6 +551,7 @@ export class MatchEngine {
       const t = this.priv.get(p.id)?.correctTimeMs ?? 0;
       p.avgCorrectMs = p.correctCount > 0 ? Math.round(t / p.correctCount) : 0;
     }
+    this.refreshTeams();
   }
 
   private finish(): void {
@@ -572,6 +648,7 @@ export class MatchEngine {
     this.s.summaries.clear();
     this.s.matchId = "";
     this.ensureHost();
+    this.refreshTeams();
   }
 
   // -------------------------------------------------------------- plumbing
@@ -606,6 +683,7 @@ export class MatchEngine {
   }
 
   private bump(): void {
+    this.refreshTeams();
     this.s.seq += 1;
     this.s.serverNow = this.now();
   }

@@ -6,10 +6,26 @@ Lobby, countdown (4 seconds), then for each question: question, reveal (4.5 seco
 
 ## Settings (host only, lobby only)
 
-- Category: Mixed, General knowledge, Science, Technology, History, Sports, Entertainment, Geography
+- Play mode: Solo, or Team A vs Team B
+- Category: Mixed, one of seven topics (General knowledge, Science, Technology, History, Sports, Entertainment, Geography) or one of five regions (Nigeria, Africa, Europe, Asia, The Americas)
 - Questions: 5, 10, 15 or 20
 - Seconds per question: 10, 15, 20 or 30
 - Maximum players: 2 to 12
+
+## Region sets
+
+Each region has 24 questions at three difficulty levels. A region match asks only that region. Mixed uses the seven topic sets only, so a group outside Nigeria is never surprised by Nigeria questions. The full list is in `docs/REGION_QUESTIONS.md`.
+
+## Team mode
+
+- The host turns on Team A vs Team B in the lobby. Players are split evenly in join order. Later joiners go to the smaller team.
+- Any player can switch team while still in the lobby. Teams are locked once the match starts.
+- The match needs at least one connected player on each team.
+- Everyone answers and scores individually as in solo play.
+- A team's score is the average of its players' scores. Averages keep uneven teams fair, for example 3 against 2.
+- Teams are ranked by that average, then by correct answers per player. A tie on both shares first place.
+- A player who leaves mid match stays in their team's average with the score they had.
+- Play again and Back to lobby keep the teams. Scores reset.
 
 ## Starting
 

@@ -33,6 +33,10 @@ The state carries `phaseEndsAt` and `question.endsAt` as server timestamps. Each
 
 All messages pass strict Zod schemas. Room creation, joining and matchmaking are rate limited per IP. Connections that flood messages are dropped. The number of live rooms is capped by `MAX_ROOMS`. Cross-site matchmaking requests and WebSocket upgrades are refused by origin check.
 
+## Teams
+
+Team mode is a setting on the same room. Each player has a `team` value (0 solo, 1 or 2). The engine recomputes the two team rows in the synchronized state after every change: total, member count, average score (the team score) and rank. Clients only display these rows and never calculate them.
+
 ## Persistence
 
 Optional. With `DATABASE_URL` set, finished matches are saved (scores and per-question statistics, no names). If the database is down, games continue and the failure is logged.

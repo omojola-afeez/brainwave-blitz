@@ -1,6 +1,6 @@
 # Brainwave Blitz
 
-A real-time multiplayer trivia game for 2 to 12 players. One person creates a room, everyone else joins with a 5 character code or an invite link. No accounts. The server decides all scores and timing.
+A real-time multiplayer trivia game for 2 to 12 players. One person creates a room, everyone else joins with a 5 character code or an invite link. Play solo or as Team A against Team B, with seven topics and five region sets (Nigeria, Africa, Europe, Asia, The Americas). No accounts. The server decides all scores and timing.
 
 ## Run it on your computer
 

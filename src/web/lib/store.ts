@@ -9,6 +9,7 @@ import { friendlyError, REJECT_MESSAGES } from "./errors";
 
 export type Snapshot = ReturnType<BlitzState["toJSON"]>;
 export type PlayerSnap = Snapshot["players"][string];
+export type TeamSnap = Snapshot["teams"][number];
 export type Status = "idle" | "connecting" | "connected" | "reconnecting" | "lost";
 
 export interface Toast {
@@ -247,6 +248,9 @@ class GameStore {
   }
   setSettings(update: Partial<SettingsUpdate>): void {
     this.send(MSG.setSettings, update);
+  }
+  setTeam(team: 1 | 2): void {
+    this.send(MSG.setTeam, { team });
   }
   start(): void {
     this.send(MSG.startMatch);

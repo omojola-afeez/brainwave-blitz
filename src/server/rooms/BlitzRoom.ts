@@ -10,6 +10,7 @@ import {
   MSG,
   readySchema,
   settingsSchema,
+  teamSchema,
   syncSchema,
 } from "../../shared/schemas";
 import { MatchEngine, type RejectReason, type Result } from "../game/engine";
@@ -239,6 +240,7 @@ export class BlitzRoom extends Room<{ state: BlitzState }> {
 
     this.guarded(MSG.setReady, readySchema, (pid, d) => this.engine.setReady(pid, d.ready));
     this.guarded(MSG.setSettings, settingsSchema, (pid, d) => this.engine.updateSettings(pid, d));
+    this.guarded(MSG.setTeam, teamSchema, (pid, d) => this.engine.setTeam(pid, d.team));
     this.guarded(MSG.startMatch, emptySchema, (pid) => this.engine.start(pid));
     this.guarded(MSG.playAgain, emptySchema, (pid) => this.engine.playAgain(pid));
     this.guarded(MSG.backToLobby, emptySchema, (pid) => this.engine.backToLobby(pid));

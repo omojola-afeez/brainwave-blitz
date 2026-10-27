@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORIES } from "../../src/shared/constants";
+import { CATEGORIES, REGION_CATEGORIES, TOPIC_CATEGORIES } from "../../src/shared/constants";
 import {
   BANK,
   poolSize,
@@ -39,6 +39,33 @@ describe("question bank", () => {
     const problems = validateBank(bad);
     expect(problems.some((p) => p.includes("duplicate"))).toBe(true);
     expect(problems.some((p) => p.includes("distinct"))).toBe(true);
+  });
+});
+
+describe("region sets", () => {
+  it("has five region sets of 24 questions, each with every difficulty", () => {
+    expect(REGION_CATEGORIES).toHaveLength(5);
+    for (const c of REGION_CATEGORIES) {
+      expect(poolSize(c)).toBe(24);
+      const levels = BANK.filter((q) => q.category === c).map((q) => q.difficulty);
+      expect(new Set(levels).size).toBe(3);
+    }
+  });
+  it("keeps regions out of Mixed", () => {
+    const topicTotal = BANK.filter((q) => (TOPIC_CATEGORIES as readonly string[]).includes(q.category)).length;
+    expect(poolSize("mixed")).toBe(topicTotal);
+    for (let seed = 1; seed <= 20; seed++) {
+      const qs = selectQuestions("mixed", 20, new Set(), seeded(seed));
+      expect(qs.every((q) => (TOPIC_CATEGORIES as readonly string[]).includes(q.category))).toBe(true);
+    }
+  });
+  it("a region match asks only that region, 20 distinct questions", () => {
+    for (const c of REGION_CATEGORIES) {
+      const qs = selectQuestions(c, 20, new Set(), seeded(7));
+      expect(qs).toHaveLength(20);
+      expect(new Set(qs.map((q) => q.id)).size).toBe(20);
+      expect(qs.every((q) => q.category === c)).toBe(true);
+    }
   });
 });
 

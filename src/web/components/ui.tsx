@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { game, useGame, type PlayerSnap } from "../lib/store";
+import { game, useGame, type PlayerSnap, type TeamSnap } from "../lib/store";
 
 const HUES = [190, 265, 40, 150, 340, 215, 20, 100, 300, 170, 60, 240];
 
@@ -115,4 +115,62 @@ export function sortedPlayers(players: Record<string, PlayerSnap>): PlayerSnap[]
 
 export function rankedPlayers(players: Record<string, PlayerSnap>): PlayerSnap[] {
   return Object.values(players).sort((a, b) => a.rank - b.rank || b.score - a.score || a.order - b.order);
+}
+
+/** Team colors. Full class names so Tailwind can see them. Team B text is lightened for contrast. */
+export const TEAM_STYLE = {
+  1: { text: "text-cyan", border: "border-cyan", bg: "bg-cyan/10", pill: "bg-cyan/15 text-cyan" },
+  2: { text: "text-[#b8a3ff]", border: "border-violet", bg: "bg-violet/15", pill: "bg-violet/20 text-[#b8a3ff]" },
+} as const;
+
+export function TeamBadge({ team, short = false }: { team: number; short?: boolean }) {
+  if (team !== 1 && team !== 2) return null;
+  const st = TEAM_STYLE[team];
+  const name = team === 1 ? "Team A" : "Team B";
+  if (short) {
+    return (
+      <span
+        role="img"
+        aria-label={name}
+        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${st.pill}`}
+      >
+        {team === 1 ? "A" : "B"}
+      </span>
+    );
+  }
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.pill}`}>{team === 1 ? "Team A" : "Team B"}</span>
+  );
+}
+
+export function TeamCards({ teams, myTeam }: { teams: TeamSnap[]; myTeam: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3" role="group" aria-label="Team standings">
+      {teams.map((t) => {
+        const st = TEAM_STYLE[t.id === 2 ? 2 : 1];
+        const leading = t.rank === 1;
+        return (
+          <div
+            key={t.id}
+            className={`rounded-2xl border-2 p-4 ${st.border} ${leading ? st.bg : "bg-panel/70"}`}
+            aria-label={`${t.name}${t.id === myTeam ? ", your team" : ""}: ${t.score} points average, rank ${t.rank}`}
+          >
+            <p className={`font-display text-lg font-bold ${st.text}`}>
+              {t.name}
+              {t.id === myTeam && (
+                <>
+                  {" "}
+                  <span className="ml-1 text-sm font-normal text-muted">you</span>
+                </>
+              )}
+            </p>
+            <p className="font-display text-4xl font-extrabold tabular-nums">{t.score}</p>
+            <p className="text-sm text-muted">
+              average of {t.members} {t.members === 1 ? "player" : "players"}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

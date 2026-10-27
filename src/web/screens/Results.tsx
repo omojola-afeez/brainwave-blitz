@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { game, useGame, type Snapshot } from "../lib/store";
-import { Avatar, Panel, rankedPlayers } from "../components/ui";
+import { Avatar, Panel, rankedPlayers, TeamBadge, TeamCards } from "../components/ui";
 import { shareInvite } from "./Lobby";
 
 function Confetti() {
@@ -34,8 +34,16 @@ export function Results({ snap }: { snap: Snapshot }) {
   const iWon = !!me && me.rank === 1;
   const rounds = snap.summaries.length;
 
-  const headline =
-    winners.length === 0
+  const teamsOn = snap.mode === "teams";
+  const myTeam = teamsOn ? (me?.team ?? 0) : 0;
+  const winningTeams = snap.teams.filter((t) => t.rank === 1 && t.members > 0);
+  const iWonTeam = teamsOn && winningTeams.some((t) => t.id === myTeam);
+
+  const headline = teamsOn
+    ? winningTeams.length === 1
+      ? `${winningTeams[0]?.name} wins`
+      : "Teams tie for first"
+    : winners.length === 0
       ? "Match over"
       : winners.length === 1
         ? `${winners[0]?.name} wins`
@@ -43,12 +51,17 @@ export function Results({ snap }: { snap: Snapshot }) {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
-      {iWon && <Confetti />}
+      {(teamsOn ? iWonTeam : iWon) && <Confetti />}
       <header className="mb-6 text-center">
         <p className="text-muted">Final results</p>
         <h1 className="mt-1 text-4xl font-extrabold sm:text-6xl">{headline}</h1>
       </header>
 
+      {teamsOn && (
+        <div className="mb-4">
+          <TeamCards teams={snap.teams} myTeam={myTeam} />
+        </div>
+      )}
       <ol className="space-y-2" aria-label="Final leaderboard">
         {list.map((p) => {
           const acc = rounds > 0 ? Math.round((p.correctCount / rounds) * 100) : 0;
@@ -64,6 +77,7 @@ export function Results({ snap }: { snap: Snapshot }) {
                   {p.name}
                   {p.left && <span className="ml-2 text-sm font-normal text-muted">left</span>}
                 </span>
+                {teamsOn && <TeamBadge team={p.team} short />}
                 <span className="font-display text-2xl font-bold tabular-nums">{p.score}</span>
               </div>
               <p className="mt-1 pl-11 text-sm text-muted">

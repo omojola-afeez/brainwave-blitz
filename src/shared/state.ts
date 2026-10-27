@@ -10,6 +10,8 @@ export const PlayerState = schema(
     avatar: t.uint8(),
     order: t.uint16(),
     ready: t.boolean(),
+    /** 0 in solo mode, 1 for Team A, 2 for Team B. */
+    team: t.uint8(),
     connected: t.boolean(),
     left: t.boolean(),
     isHost: t.boolean(),
@@ -52,6 +54,24 @@ export const QuestionState = schema(
 );
 export type QuestionState = SchemaType<typeof QuestionState>;
 
+export const TeamState = schema(
+  {
+    id: t.uint8(),
+    name: t.string(),
+    /** Team score: the average of its players' scores, so uneven teams are fair. */
+    score: t.uint32(),
+    /** Sum of its players' scores, for display. */
+    total: t.uint32(),
+    /** Players on the team, including any who left during the match. */
+    members: t.uint8(),
+    /** Correct answers added up across the team. */
+    correctCount: t.uint16(),
+    rank: t.uint8(),
+  },
+  "TeamState",
+);
+export type TeamState = SchemaType<typeof TeamState>;
+
 export const RoundSummary = schema(
   {
     index: t.uint8(),
@@ -78,6 +98,9 @@ export const BlitzState = schema(
     rounds: t.uint8(),
     questionSeconds: t.uint8(),
     maxPlayers: t.uint8(),
+    /** "solo" or "teams". */
+    mode: t.string(),
+    teams: t.array(TeamState),
     /** Server clock at the last transition, for display only. Clients sync their own offset. */
     serverNow: t.float64(),
     phaseEndsAt: t.float64(),
@@ -100,6 +123,18 @@ export function createInitialState(code: string): BlitzState {
   state.rounds = 10;
   state.questionSeconds = 20;
   state.maxPlayers = 12;
+  state.mode = "solo";
+  for (const [id, name] of [[1, "Team A"], [2, "Team B"]] as const) {
+    const team = new TeamState();
+    team.id = id;
+    team.name = name;
+    team.score = 0;
+    team.total = 0;
+    team.members = 0;
+    team.correctCount = 0;
+    team.rank = 0;
+    state.teams.push(team);
+  }
   state.serverNow = Date.now();
   state.phaseEndsAt = 0;
   const q = new QuestionState();

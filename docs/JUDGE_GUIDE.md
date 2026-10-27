@@ -13,6 +13,12 @@ Open the address 5 minutes before the demo. The free service sleeps when idle an
 5. On the final screen, show both devices with the same standings and the per question strip.
 6. Click Play again to show a rematch.
 
+## Optional: team and region demo
+
+1. In the lobby, the host picks Team A vs Team B. Players are split into two colored columns and can switch teams.
+2. Pick the Nigeria category to show the region questions.
+3. After the match the results show which team won, with the team score as the average of its players.
+
 ## What to point out
 
 - No accounts and no install.

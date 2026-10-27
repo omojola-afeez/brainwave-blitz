@@ -22,12 +22,15 @@ async function joinRoom(page: Page, code: string): Promise<void> {
   await expect(codeLoc(page)).toHaveText(code);
 }
 
+/**
+ * Answers every question. It waits for each question header, clicks an option and moves on.
+ * It does not wait for the reveal screen, which lasts only half a second in fast test timing.
+ */
 async function answerAll(page: Page, rounds: number): Promise<void> {
   for (let i = 0; i < rounds; i++) {
-    await expect(page.getByText(`Question ${i + 1} of ${rounds}`).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(`Question ${i + 1} of ${rounds}`).first()).toBeVisible({ timeout: 25_000 });
     const opts = page.getByRole("group", { name: "Answers" }).getByRole("button");
-    await opts.nth(i % 4).click({ timeout: 5_000 }).catch(() => undefined);
-    await expect(page.getByText(/Correct\.|Not this one|Time ran out/).first()).toBeVisible({ timeout: 20_000 });
+    await opts.nth(i % 4).click({ timeout: 3_000 }).catch(() => undefined);
   }
 }
 
@@ -101,4 +104,57 @@ test("full room rejects the 13th player and two rooms stay separate", async ({ b
   const code2 = await createRoom(other);
   expect(code2).not.toBe(code);
   await expect(other.getByText("P2")).toHaveCount(0);
+});
+
+test("team match: split, both teams required, same team results on both devices", async ({ browser }) => {
+  const host = await newPlayer(browser, "Ife");
+  const code = await createRoom(host);
+  const guest = await newPlayer(browser, "Jide", { width: 390, height: 780 });
+  await joinRoom(guest, code);
+
+  await host.getByRole("button", { name: "Team A vs Team B" }).click();
+  await expect(host.getByRole("heading", { name: /^Team A/ })).toBeVisible();
+  await expect(guest.getByRole("heading", { name: /^Team B/ })).toBeVisible();
+  await expect(host.getByRole("list", { name: "Team A players" })).toContainText("Ife");
+  await expect(host.getByRole("list", { name: "Team B players" })).toContainText("Jide");
+
+  // Putting both players on one team blocks the start.
+  await guest.getByRole("button", { name: "Ready", exact: true }).click();
+  await guest.getByRole("button", { name: "Switch to Team A" }).click();
+  await expect(host.getByRole("button", { name: "Start match" })).toBeDisabled();
+  await expect(host.getByText("Each team needs at least one player.")).toBeVisible();
+  await guest.getByRole("button", { name: "Switch to Team B" }).click();
+  await expect(host.getByRole("button", { name: "Start match" })).toBeEnabled();
+
+  await host.getByRole("button", { name: "5", exact: true }).first().click();
+  await host.getByRole("button", { name: "Start match" }).click();
+  await Promise.all([answerAll(host, 5), answerAll(guest, 5)]);
+
+  await expect(host.getByRole("group", { name: "Team standings" })).toBeVisible({ timeout: 30_000 });
+  await expect(guest.getByRole("group", { name: "Team standings" })).toBeVisible({ timeout: 30_000 });
+  await expect(host.getByRole("heading", { level: 1 })).toHaveText(/Team [AB] wins|Teams tie for first/);
+  const readTeams = async (p: Page) => (await p.getByRole("group", { name: "Team standings" }).innerText()).replace(/\s+/g, " ").replace(/\byou\b/g, "").replace(/\s+/g, " ").trim();
+  expect(await readTeams(host)).toBe(await readTeams(guest));
+  const read = async (p: Page) => (await p.getByRole("list", { name: "Final leaderboard" }).innerText()).replace(/\s+/g, " ");
+  expect(await read(host)).toBe(await read(guest));
+
+  // Back to lobby keeps the teams.
+  await host.getByRole("button", { name: "Back to lobby" }).click();
+  await expect(host.getByRole("list", { name: "Team A players" })).toContainText("Ife");
+  await expect(guest.getByRole("list", { name: "Team B players" })).toContainText("Jide");
+});
+
+test("a region set can be picked and its questions are used", async ({ browser }) => {
+  const host = await newPlayer(browser, "Kemi");
+  const code = await createRoom(host);
+  const guest = await newPlayer(browser, "Lanre");
+  await joinRoom(guest, code);
+  await host.locator("#category").selectOption("nigeria");
+  await expect(guest.locator("#category")).toHaveValue("nigeria");
+  await guest.getByRole("button", { name: "Ready", exact: true }).click();
+  await host.getByRole("button", { name: "5", exact: true }).first().click();
+  await host.getByRole("button", { name: "Start match" }).click();
+  await expect(host.getByText("Question 1 of 5").first()).toBeVisible({ timeout: 20_000 });
+  await expect(host.getByText("Nigeria", { exact: true })).toBeVisible();
+  await expect(guest.getByText("Nigeria", { exact: true })).toBeVisible();
 });

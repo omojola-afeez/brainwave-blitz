@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CATEGORY_CHOICES, LIMITS } from "./constants";
+import { CATEGORY_CHOICES, GAME_MODES, LIMITS } from "./constants";
 
 /** Letters, numbers, spaces and a few friendly symbols. No control characters or markup. */
 const NAME_PATTERN = /^[\p{L}\p{N} ._'-]+$/u;
@@ -40,6 +40,7 @@ export const settingsSchema = z
       .int()
       .refine((n) => (LIMITS.questionSecondsOptions as readonly number[]).includes(n)),
     maxPlayers: z.number().int().min(LIMITS.minPlayers).max(LIMITS.maxPlayersCeiling),
+    mode: z.enum(GAME_MODES),
   })
   .strict()
   .partial()
@@ -57,12 +58,15 @@ export const answerSchema = z
 
 export const syncSchema = z.object({ t0: z.number().finite() }).strict();
 
+export const teamSchema = z.object({ team: z.union([z.literal(1), z.literal(2)]) }).strict();
+
 export const emptySchema = z.object({}).strict().optional();
 
 /** Message names shared by client and server. */
 export const MSG = {
   setReady: "ready",
   setSettings: "settings",
+  setTeam: "team",
   startMatch: "start",
   answer: "answer",
   playAgain: "play_again",

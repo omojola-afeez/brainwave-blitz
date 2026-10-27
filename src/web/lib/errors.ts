@@ -27,6 +27,8 @@ export const REJECT_MESSAGES: Record<string, string> = {
   NOT_HOST: "Only the host can do that.",
   NOT_ENOUGH_PLAYERS: "You need at least 2 players to start.",
   NOT_READY: "Everyone needs to be ready first.",
+  NOT_TEAM_MODE: "Teams are not turned on for this room.",
+  NEED_BOTH_TEAMS: "Each team needs at least one connected player.",
   STALE_QUESTION: "That question has already ended.",
   UNKNOWN_PLAYER: "You are no longer in this room.",
   TOO_MANY_PLAYERS: "That would be more players than the room allows.",

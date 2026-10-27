@@ -1,4 +1,4 @@
-import type { Category } from "../../shared/constants";
+import type { TopicCategory } from "../../shared/constants";
 
 /**
  * Curated question bank. Each row is [difficulty, question, correct answer, wrong, wrong, wrong].
@@ -8,7 +8,7 @@ import type { Category } from "../../shared/constants";
  */
 export type Row = readonly [1 | 2 | 3, string, string, string, string, string];
 
-export const QUESTION_BANK: Record<Category, readonly Row[]> = {
+export const QUESTION_BANK: Record<TopicCategory, readonly Row[]> = {
   general: [
     [1, "How many days are in a leap year?", "366", "365", "364", "367"],
     [1, "How many colors are traditionally listed in a rainbow?", "7", "5", "6", "8"],

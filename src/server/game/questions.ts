@@ -1,6 +1,12 @@
 import { randomInt } from "node:crypto";
-import { CATEGORIES, LIMITS, type Category, type CategoryChoice } from "../../shared/constants";
+import { CATEGORIES, LIMITS, isTopicCategory, type Category, type CategoryChoice } from "../../shared/constants";
 import { QUESTION_BANK } from "../data/questionBank";
+import { REGION_BANK } from "../data/regionBank";
+
+const ALL_ROWS = { ...QUESTION_BANK, ...REGION_BANK };
+
+/** Mixed mode covers the topic sets only. Regions are chosen on purpose. */
+const inMixed = (q: { category: string }): boolean => isTopicCategory(q.category);
 
 export type Difficulty = 1 | 2 | 3;
 
@@ -29,7 +35,7 @@ export const cryptoRng: Rng = (max) => randomInt(max);
 export function loadBank(): BankQuestion[] {
   const out: BankQuestion[] = [];
   for (const category of CATEGORIES) {
-    QUESTION_BANK[category].forEach((row, i) => {
+    ALL_ROWS[category].forEach((row, i) => {
       const [difficulty, text, correct, w1, w2, w3] = row;
       out.push({ id: `${category}-${i + 1}`, category, difficulty, text, correct, wrong: [w1, w2, w3] });
     });
@@ -44,7 +50,9 @@ export function validateBank(bank: readonly BankQuestion[]): string[] {
   const problems: string[] = [];
   const seenText = new Set<string>();
   for (const q of bank) {
-    const key = q.text.trim().toLowerCase();
+    // Topic sets share the Mixed pool. Each region set is its own pool, so a repeat across pools is harmless.
+    const pool = isTopicCategory(q.category) ? "mixed" : q.category;
+    const key = `${pool}|${q.text.trim().toLowerCase()}`;
     if (seenText.has(key)) problems.push(`${q.id}: duplicate question text`);
     seenText.add(key);
     const options = [q.correct, ...q.wrong];
@@ -84,7 +92,7 @@ export function toAsked(q: BankQuestion, rng: Rng): AskedQuestion {
 }
 
 export function poolSize(category: CategoryChoice, bank: readonly BankQuestion[] = BANK): number {
-  return category === "mixed" ? bank.length : bank.filter((q) => q.category === category).length;
+  return category === "mixed" ? bank.filter(inMixed).length : bank.filter((q) => q.category === category).length;
 }
 
 /**
@@ -98,7 +106,7 @@ export function selectQuestions(
   rng: Rng = cryptoRng,
   bank: readonly BankQuestion[] = BANK,
 ): AskedQuestion[] {
-  const inScope = category === "mixed" ? [...bank] : bank.filter((q) => q.category === category);
+  const inScope = category === "mixed" ? bank.filter(inMixed) : bank.filter((q) => q.category === category);
   if (inScope.length === 0) return [];
   const want = Math.min(count, inScope.length);
 

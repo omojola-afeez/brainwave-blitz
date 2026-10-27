@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { CATEGORY_LABELS, type CategoryChoice } from "../../shared/constants";
 import { game, useGame, type Snapshot } from "../lib/store";
-import { Avatar, Panel, rankedPlayers, ShapeIcon, SHAPES, useTick, WaveTimer } from "../components/ui";
+import { Avatar, Panel, rankedPlayers, ShapeIcon, SHAPES, TeamBadge, TeamCards, useTick, WaveTimer } from "../components/ui";
 
 function categoryLabel(c: string): string {
   return CATEGORY_LABELS[c as CategoryChoice] ?? c;
@@ -68,7 +68,8 @@ function Options({ snap, mode }: { snap: Snapshot; mode: "answer" | "reveal" }) 
 }
 
 export function Question({ snap }: { snap: Snapshot }) {
-  const { pick, acked } = useGame();
+  const { pick, acked, myId } = useGame();
+  const myTeam = snap.mode === "teams" && myId ? (snap.players[myId]?.team ?? 0) : 0;
   const q = snap.question;
   const now = useTick(true, 100);
   const total = Math.max(1, q.endsAt - q.startedAt);
@@ -94,7 +95,10 @@ export function Question({ snap }: { snap: Snapshot }) {
         <span className="font-display font-semibold text-text">
           Question {q.index + 1} of {q.total}
         </span>
-        <span>{categoryLabel(q.category)}</span>
+        <span className="flex items-center gap-2">
+          <TeamBadge team={myTeam} />
+          {categoryLabel(q.category)}
+        </span>
       </div>
 
       <div className="flex items-center gap-4">
@@ -176,6 +180,8 @@ export function Scoreboard({ snap }: { snap: Snapshot }) {
   const left = Math.max(0, Math.ceil((snap.phaseEndsAt - now) / 1000));
   const list = rankedPlayers(snap.players).filter((p) => !p.left);
   const last = snap.question.index + 1 >= snap.question.total;
+  const teamsOn = snap.mode === "teams";
+  const myTeam = teamsOn && myId ? (snap.players[myId]?.team ?? 0) : 0;
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 px-4 py-6">
       <header className="flex items-end justify-between">
@@ -184,6 +190,7 @@ export function Scoreboard({ snap }: { snap: Snapshot }) {
           {last ? "Final results next" : `Next question in ${left}`}
         </p>
       </header>
+      {teamsOn && <TeamCards teams={snap.teams} myTeam={myTeam} />}
       <ol className="space-y-2" aria-label="Leaderboard">
         {list.map((p) => (
           <li
@@ -193,6 +200,7 @@ export function Scoreboard({ snap }: { snap: Snapshot }) {
             <span className="w-8 font-display text-2xl font-extrabold text-muted">{p.rank}</span>
             <Avatar index={p.avatar} name={p.name} />
             <span className="min-w-0 flex-1 truncate font-semibold">{p.name}</span>
+            {teamsOn && <TeamBadge team={p.team} short />}
             {p.lastGain > 0 && <span className="text-sm font-semibold text-mint">+{p.lastGain}</span>}
             <span className="w-16 text-right font-display text-xl font-bold tabular-nums">{p.score}</span>
           </li>

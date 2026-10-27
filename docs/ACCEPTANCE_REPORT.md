@@ -6,7 +6,7 @@ Date: 2026-10-26. Public URL: https://brainwave-blitz-v6q8.onrender.com
 
 ## Evidence sources
 
-- A: automated tests in this repository (142 unit and integration tests, 4 Playwright browser tests), run on the build machine against a local server.
+- A: automated tests in this repository (165 unit and integration tests, 6 Playwright browser tests), run on the build machine against a local server.
 - B: manual test on the public URL by the owner, one computer and one phone on mobile data, with screenshots (health check, lobby, final results).
 
 ## Results
@@ -36,7 +36,11 @@ Date: 2026-10-26. Public URL: https://brainwave-blitz-v6q8.onrender.com
 | Load test at many simultaneous rooms | NOT VERIFIED | No load test has been run. Free tier capacity is unknown |
 | Behavior after the free service sleeps and wakes | NOT VERIFIED | Documented as a limitation. Not timed |
 | Match history saved to a database | NOT VERIFIED | Feature exists and has tests. No database is connected in production |
-| Power-ups, custom questions, teams | NOT BUILT | Deferred by decision |
+| Region question sets (Nigeria, Africa, Europe, Asia, The Americas) | PASS (local only) | A: bank validation, pool size, Mixed excludes regions, region match asks only that region, answers hidden over real connections, browser test picks Nigeria and sees Nigeria questions. NOT VERIFIED on the public server until deployed |
+| Region question accuracy | NOT VERIFIED | Written by hand. No outside fact check. Full list in `docs/REGION_QUESTIONS.md` for review |
+| Team A vs Team B: split, switch, both teams required | PASS (local only) | A: unit tests, 4 player integration test over real connections, browser test with two contexts. NOT VERIFIED on the public server until deployed |
+| Team scores equal on all devices, averages fair for uneven teams | PASS (local only) | A: unit tests (3 against 2 cases, mutation check that breaking the average fails them), integration and browser tests compare both devices |
+| Power-ups, custom questions | NOT BUILT | Deferred by decision |
 
 ## Open items
 

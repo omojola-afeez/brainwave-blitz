@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { CATEGORY_CHOICES, CATEGORY_LABELS, LIMITS } from "../../shared/constants";
+import {
+  CATEGORY_LABELS,
+  GAME_MODES,
+  LIMITS,
+  MODE_LABELS,
+  REGION_CATEGORIES,
+  TOPIC_CATEGORIES,
+} from "../../shared/constants";
 import { game, useGame, type Snapshot, type PlayerSnap } from "../lib/store";
-import { Avatar, Panel, sortedPlayers } from "../components/ui";
+import { Avatar, Panel, sortedPlayers, TEAM_STYLE } from "../components/ui";
 
 async function copy(text: string, ok: string) {
   try {
@@ -90,11 +97,17 @@ export function Lobby({ snap }: { snap: Snapshot }) {
   const connected = players.filter((p) => p.connected);
   const others = connected.filter((p) => !p.isHost);
   const allReady = others.every((p) => p.ready);
-  const canStart = isHost && connected.length >= LIMITS.minPlayers && allReady;
+  const teamsOn = snap.mode === "teams";
+  const teamA = players.filter((p) => p.team === 1);
+  const teamB = players.filter((p) => p.team === 2);
+  const bothTeams = !teamsOn || (teamA.some((p) => p.connected) && teamB.some((p) => p.connected));
+  const canStart = isHost && connected.length >= LIMITS.minPlayers && allReady && bothTeams;
+  const myTeam = me?.team === 2 ? 2 : 1;
 
   let hint = "";
   if (isHost) {
     if (connected.length < LIMITS.minPlayers) hint = "Waiting for at least one more player.";
+    else if (!bothTeams) hint = "Each team needs at least one player.";
     else if (!allReady) hint = "Waiting for everyone to press Ready.";
     else hint = "Everyone is ready. Start when you are.";
   } else {
@@ -128,17 +141,55 @@ export function Lobby({ snap }: { snap: Snapshot }) {
           <h2 className="mb-4 text-2xl font-bold">
             Players <span className="text-muted">{connected.length}/{snap.maxPlayers}</span>
           </h2>
-          <ul className="space-y-2" aria-label="Players in the room">
-            {players.map((p) => (
-              <PlayerRow key={p.id} p={p} isMe={p.id === myId} />
-            ))}
-          </ul>
+          {teamsOn ? (
+            <div className="space-y-4">
+              {([1, 2] as const).map((t) => {
+                const list = t === 1 ? teamA : teamB;
+                const st = TEAM_STYLE[t];
+                return (
+                  <div key={t} className={`rounded-2xl border-2 p-3 ${st.border}`}>
+                    <h3 className={`mb-2 font-display text-lg font-bold ${st.text}`}>
+                      {t === 1 ? "Team A" : "Team B"} <span className="font-normal text-muted">{list.length}</span>
+                    </h3>
+                    <ul className="space-y-2" aria-label={`${t === 1 ? "Team A" : "Team B"} players`}>
+                      {list.map((p) => (
+                        <PlayerRow key={p.id} p={p} isMe={p.id === myId} />
+                      ))}
+                    </ul>
+                    {list.length === 0 && <p className="text-sm text-muted">No players yet. Switch over to fill this team.</p>}
+                  </div>
+                );
+              })}
+              {me && (
+                <button className="btn btn-ghost w-full" onClick={() => game.setTeam(myTeam === 1 ? 2 : 1)}>
+                  Switch to {myTeam === 1 ? "Team B" : "Team A"}
+                </button>
+              )}
+              <p className="text-sm text-muted">
+                A team's score is the average of its players' scores, so uneven teams stay fair.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2" aria-label="Players in the room">
+              {players.map((p) => (
+                <PlayerRow key={p.id} p={p} isMe={p.id === myId} />
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel className="space-y-5 md:col-span-2">
           <h2 className="text-2xl font-bold">Match settings</h2>
           {!isHost && <p className="text-sm text-muted">Only the host can change these.</p>}
           <fieldset disabled={!isHost} className="space-y-5">
+            <Segmented
+              label="Play mode"
+              value={snap.mode as (typeof GAME_MODES)[number]}
+              options={GAME_MODES}
+              disabled={!isHost}
+              render={(m) => MODE_LABELS[m]}
+              onPick={(v) => game.setSettings({ mode: v })}
+            />
             <div>
               <label htmlFor="category" className="mb-2 block font-display font-semibold">
                 Category
@@ -150,12 +201,25 @@ export function Lobby({ snap }: { snap: Snapshot }) {
                 disabled={!isHost}
                 onChange={(e) => game.setSettings({ category: e.target.value })}
               >
-                {CATEGORY_CHOICES.map((c) => (
-                  <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
-                  </option>
-                ))}
+                <option value="mixed">{CATEGORY_LABELS.mixed}</option>
+                <optgroup label="Topics">
+                  {TOPIC_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Regions">
+                  {REGION_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
+              {snap.category === "mixed" && (
+                <p className="mt-2 text-sm text-muted">Mixed uses topics only. Pick a region for Nigeria, Africa, Europe, Asia or the Americas.</p>
+              )}
             </div>
             <Segmented
               label="Questions"
